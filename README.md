@@ -1,6 +1,5 @@
 # Python_Utilities
-Python Scripts for handling redundant jobs
-These have dependencies on python libraries which can be easily installed via pip
+Python Scripts for handling redundant jobs. These have dependencies on python libraries which can be easily installed via pip
 
 1. youtube-playlist-downloader (downloads all the videos in a youtube playlist)
   -- Has dependencies on httplib2, argparse, pytube and urllib.
