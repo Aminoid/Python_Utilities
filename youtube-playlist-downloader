@@ -1,0 +1,110 @@
+#!/usr/bin/python
+
+import httplib2, argparse, urllib
+import os, sys, json
+from time import clock
+from pytube import YouTube
+#from tqdm import tqdm
+
+my_api_key = "AIzaSyDTSOxMA1sCrg6Fa9w0j7fjsdC9QI9q3m4"
+max_results  = 50
+res = ""
+down = 1
+format_file = "mp4"
+page_token = ""
+
+def print_status(progress, file_size, start):
+    percent_done = int(progress) * 100. / file_size
+    done = int(50 * progress / int(file_size))
+    dt = (clock() - start)
+    if dt > 0:
+        sys.stdout.write("[%s%s][%3.2f%%] \r " %
+                     ('=' * done, ' ' * (50 - done), percent_done))
+    sys.stdout.flush()
+
+def download_video(videoId):
+	global res
+	try:
+		yt = YouTube("http://www.youtube.com/watch?v=" + videoId)
+	except:
+		print "[Unable to download this video][Fail]\n"
+		return 
+	video = yt.get(format_file, yt.filter(format_file)[-1].resolution)
+	if res != "":
+		if len(yt.filter(format_file, resolution=res)) > 0:
+			video = yt.get(format_file, res)
+		else:
+			print "[Unable to find the %s resolution][Downloading the best available]" %(res)
+				
+	try:
+		video.download(os.getcwd(), on_progress=print_status)
+	except OSError:
+		print "[File already present][Skip]"
+	print "\n"
+	return
+
+
+
+def download_playlist(urlid):
+	global down
+	global page_token
+
+	print "Getting playlist info..."
+	while True:
+		data = fetch_playlist_info(urlid, page_token)	
+		print "Total Videos Found: %d\n" %(data['pageInfo']['totalResults'])
+	 
+		for item in data['items']:
+			print "%d. %s" %(down, item['snippet']['title'])
+			download_video(item['snippet']['resourceId']['videoId'])
+			down = down + 1
+		try:
+			page_token = data['nextPageToken']
+			print "\nMoving over to next page"
+			print "-" * 30
+		except:
+			break
+	print "Download Complete!!!"
+	return			
+
+def fetch_playlist_info(urlid, page_token):
+	http = httplib2.Http()
+	url = "https://www.googleapis.com/youtube/v3/playlistItems/?part=snippet&" \
+	      "playlistId=%s&maxResults=%d&key=%s&pageToken=%s" %(urlid, max_results, my_api_key, page_token)
+	response, content = http.request(url, 'GET')
+	if response.status == 403:
+		string = "The request is not properly authorized to retrieve the specified playlist."
+	elif response.status == 404:
+		string = "The playlist identified with the %s parameter cannot be found." %(urlid)
+	else:
+		return json.loads(content)
+	print string
+	sys.exit(1)
+
+	
+
+if __name__ == "__main__":
+	parser = argparse.ArgumentParser("Automating Download Process")
+	parser.add_argument("-p", "--plist", help="Pass youtube playlistId as argument to download") 
+	parser.add_argument("-d", "--dir", help="Pass directory to download the data into")
+	parser.add_argument("-v", "--version", action="version", version="Hodor 1.0")
+	parser.add_argument("-r", "--res", help="Pass the resolution of videos to download")
+	args = parser.parse_args()
+        if args.plist != None:
+		if args.dir != None:
+			try:
+				os.stat(args.dir)
+			except:
+				os.makedirs(args.dir)
+			os.chdir(args.dir)
+		if args.res != None:
+			res = args.res
+		download_playlist(args.plist)
+
+	else:
+		print "Playlist ID is neccessary"
+
+	sys.exit(1)
+		
+			
+
